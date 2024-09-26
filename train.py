@@ -50,6 +50,7 @@ def main():
         running_loss = 0.0
         for batch_idx, (inputs, labels) in enumerate(dataloader):
             # Zero the gradients
+            print(f"Labels: {labels}") 
             optimizer.zero_grad()
 
             # Forward pass
