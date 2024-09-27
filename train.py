@@ -16,7 +16,7 @@ BATCH_SIZE = 100
 NUM_EPOCHS = 5
 LEARNING_RATE = 0.01
 HIDDEN_SIZE = 128
-NUM_CLASSES = 10  # Adjust based on your dataset
+# NUM_CLASSES will be determined dynamically
 
 def main():
     # Initialize the SDK client
@@ -30,16 +30,23 @@ def main():
         print(f"Initialization error: {e}")
         return
 
-    # Create the dataset and dataloader
+    # Create the dataset and dataloader with num_workers=0 and drop_last=True
     dataset = RemoteDataset(client=client, batch_size=BATCH_SIZE)
-    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
+    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=0, drop_last=True)
 
-    # Determine input size from first batch
-    for inputs, labels in dataloader:
-        input_size = inputs.shape[1]
-        break
+    # Fetch one batch to determine input_size and NUM_CLASSES
+    try:
+        inputs, labels = next(iter(dataloader))
+    except Exception as e:
+        print(f"Error fetching the first batch: {e}")
+        return
 
-    # Initialize the model, loss function, and optimizer
+    input_size = inputs.shape[1]
+    max_label = labels.max().item()
+    NUM_CLASSES = max_label + 1  # +1 because classes are 0-indexed
+    print(f"Adjusted NUM_CLASSES to {NUM_CLASSES}")
+
+    # Initialize the model, loss function, and optimizer with the correct NUM_CLASSES
     model = SimpleNN(input_size=input_size, hidden_size=HIDDEN_SIZE, num_classes=NUM_CLASSES)
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
@@ -49,8 +56,10 @@ def main():
         model.train()
         running_loss = 0.0
         for batch_idx, (inputs, labels) in enumerate(dataloader):
+            # Debugging output
+            print(f"Epoch {epoch+1}, Batch {batch_idx+1}: Labels range from {labels.min().item()} to {labels.max().item()}")
+
             # Zero the gradients
-            print(f"Labels: {labels}") 
             optimizer.zero_grad()
 
             # Forward pass
