@@ -16,7 +16,7 @@ class RemoteDataset(Dataset):
         self.init_data = self.client.initialize()
         self.total_rows = self.init_data["totalRows"]
         self.current_batch = 1
-        self.max_batches = (self.total_rows + batch_size - 1) // batch_size  # Ceiling division
+        self.max_batches = (self.total_rows // batch_size)  # Floor division for complete batches
 
         # Initialize the first batch
         try:
@@ -33,7 +33,8 @@ class RemoteDataset(Dataset):
             raise RuntimeError(f"Unexpected error while fetching batch {self.current_batch}: {e}")
 
     def __len__(self):
-        return self.total_rows
+        # Return the number of samples that form complete batches
+        return self.max_batches * self.batch_size
 
     def __getitem__(self, idx):
         """
@@ -47,7 +48,7 @@ class RemoteDataset(Dataset):
         Returns:
             tuple: (input, label)
         """
-        if idx < 0 or idx >= self.total_rows:
+        if idx < 0 or idx >= self.__len__():
             raise IndexError("Index out of range.")
 
         batch_number = (idx // self.batch_size) + 1
